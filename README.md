@@ -120,6 +120,20 @@ requested date, applied date, rate, method, source amount, and EUR amount. The r
 `mart.customer_spend_eur` table aggregates those lines and exposes `is_complete` plus pending
 line counts so partial totals cannot be mistaken for final totals.
 
+## Country and category revenue
+
+Refresh the ranked Books and Electronics revenue breakdown:
+
+```bash
+ecommerce-etl migrate
+ecommerce-etl refresh-country-revenue
+```
+
+`mart.country_category_revenue_eur` shows resolved EUR revenue for Books, Electronics, and
+their combined total by country. It includes only countries whose combined resolved revenue
+exceeds EUR 40,000 and ranks them deterministically by revenue. Pending future FX lines and a
+completeness flag remain visible so currently partial country totals are not presented as final.
+
 ## Branching
 
 Feature branches are created from `develop` and merged through pull requests. The `main`
