@@ -11,6 +11,7 @@ def test_settings_use_local_defaults() -> None:
     assert settings.database_url.endswith("localhost:5433/ecommerce_etl")
     assert settings.request_timeout_seconds == 30.0
     assert settings.orders_page_size == 1000
+    assert settings.fx_lookback_days == 7
 
 
 def test_database_url_must_be_postgresql() -> None:
@@ -26,3 +27,8 @@ def test_timeout_must_be_positive() -> None:
 def test_orders_page_size_cannot_exceed_supabase_limit() -> None:
     with pytest.raises(ValidationError):
         Settings(orders_page_size=1001, _env_file=None)
+
+
+def test_fx_lookback_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        Settings(fx_lookback_days=0, _env_file=None)

@@ -89,6 +89,21 @@ Every rejected row contains one or more explicit reasons, and every repaired cle
 the applied rules in `data_repairs`. Critical reconciliation and validity checks are stored in
 `ops.data_quality_results`.
 
+## Exchange-rate ingestion
+
+Fetch the available RON-to-EUR rate series required by clean orders:
+
+```bash
+ecommerce-etl migrate
+ecommerce-etl ingest-fx
+```
+
+The pipeline requests Frankfurter v2 only through the latest due reference date and adds a
+seven-day lookback so weekends and holidays can use the latest earlier published rate. Rates
+are upserted into `reference.fx_rates` by date and currency pair. Future order reference dates
+remain explicitly pending until a later daily run; they are never filled prematurely with the
+current rate.
+
 ## Branching
 
 Feature branches are created from `develop` and merged through pull requests. The `main`

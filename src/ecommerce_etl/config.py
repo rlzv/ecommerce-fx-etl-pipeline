@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     orders_api_key: SecretStr = SecretStr("")
     orders_page_size: int = Field(default=1000, ge=1, le=1000)
     frankfurter_base_url: str = "https://api.frankfurter.dev/v2"
+    fx_lookback_days: int = Field(default=7, ge=1, le=31)
 
     request_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
