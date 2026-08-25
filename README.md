@@ -149,8 +149,10 @@ transaction lock prevents overlapping executions, every stage keeps its own audi
 the parent `daily_etl` run fails immediately when any stage or quality check fails.
 
 `.github/workflows/daily-pipeline.yml` runs at 06:15 UTC every day and supports manual runs.
-`.github/workflows/freshness-monitor.yml` runs independently at 07:00 UTC and after every daily
-workflow completion. It fails when the upstream workflow failed, the latest successful database
+`.github/workflows/freshness-monitor.yml` runs independently at 09:00 UTC and after every daily
+workflow completion. Explicit workflow failures are reported immediately; the later independent
+schedule leaves normal GitHub scheduling delay headroom while still detecting a completely
+missed daily trigger on the same day. The monitor also fails when the latest successful database
 run is older than 26 hours, a newer failed run exists, source tables are empty, or either mart is
 stale. Configure the hosted `DATABASE_URL` and `ORDERS_API_KEY` as GitHub Actions secrets.
 

@@ -13,7 +13,7 @@ def test_daily_and_monitor_workflows_have_required_controls() -> None:
     assert "secrets.ORDERS_API_KEY" in daily
     assert "ecommerce-etl run-pipeline" in daily
 
-    assert 'cron: "0 7 * * *"' in monitor
+    assert 'cron: "0 9 * * *"' in monitor
     assert "workflow_run:" in monitor
     assert "github.event.workflow_run.conclusion != 'success'" in monitor
     assert "ecommerce-etl check-freshness --max-age-hours 26" in monitor

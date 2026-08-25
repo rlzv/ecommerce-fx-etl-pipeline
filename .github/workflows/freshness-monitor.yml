@@ -3,7 +3,7 @@ name: Pipeline Freshness Monitor
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 7 * * *"
+    - cron: "0 9 * * *"
   workflow_run:
     workflows: ["Daily ETL Pipeline"]
     types: [completed]
