@@ -8,14 +8,15 @@ from ecommerce_etl.cleaning import CleaningMetrics, DataQualityError, validate_c
 def valid_metrics() -> CleaningMetrics:
     return CleaningMetrics(
         raw_rows=9268,
-        clean_rows=8800,
-        rejected_rows=468,
-        completed_rows=8402,
+        clean_rows=8787,
+        rejected_rows=481,
+        completed_rows=8389,
         refunded_rows=398,
         duplicate_rejections=183,
         test_rejections=97,
         invalid_quantity_rejections=167,
         invalid_price_rejections=24,
+        price_outlier_rejections=13,
         customer_id_repairs=93,
         customer_surrogate_repairs=1,
         category_repairs=77,
