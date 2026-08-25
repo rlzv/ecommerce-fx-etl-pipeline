@@ -65,6 +65,30 @@ WHERE pipeline_name = 'orders_ingestion'
 ORDER BY pipeline_run_id DESC;
 ```
 
+## Orders cleaning
+
+Refresh the typed clean table and the rejected-row quarantine:
+
+```bash
+ecommerce-etl migrate
+ecommerce-etl clean-orders
+```
+
+Cleaning is implemented in SQL and runs transactionally. The transformation:
+
+- keeps the first copy of an exact duplicate and quarantines later copies;
+- quarantines test orders and rows with invalid quantities or prices;
+- parses ISO, Unix-second, and `DD/MM/YYYY HH:MM` timestamps as UTC;
+- repairs customer IDs from unambiguous normalized-email mappings and creates an explicitly
+  flagged deterministic email-based surrogate when no source ID exists anywhere;
+- repairs missing categories and malformed SKUs from the canonical product catalog;
+- retains refunded orders in `core.orders_clean`, with downstream revenue marts responsible
+  for excluding them.
+
+Every rejected row contains one or more explicit reasons, and every repaired clean row records
+the applied rules in `data_repairs`. Critical reconciliation and validity checks are stored in
+`ops.data_quality_results`.
+
 ## Branching
 
 Feature branches are created from `develop` and merged through pull requests. The `main`
