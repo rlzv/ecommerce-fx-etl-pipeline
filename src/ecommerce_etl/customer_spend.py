@@ -15,7 +15,7 @@ from ecommerce_etl.pipeline_runs import (
 
 PIPELINE_NAME = "customer_spend_mart"
 DEFAULT_CUSTOMER_SPEND_SQL = (
-    Path(__file__).resolve().parents[2] / "sql" / "marts" / "refresh_customer_spend.sql"
+    Path(__file__).resolve().parent / "sql" / "marts" / "refresh_customer_spend.sql"
 )
 
 
