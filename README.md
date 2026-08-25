@@ -104,6 +104,22 @@ are upserted into `reference.fx_rates` by date and currency pair. Future order r
 remain explicitly pending until a later daily run; they are never filled prematurely with the
 current rate.
 
+## Customer spend in EUR
+
+Refresh auditable line conversions and per-customer totals:
+
+```bash
+ecommerce-etl migrate
+ecommerce-etl refresh-customer-spend
+```
+
+Only completed orders contribute to spending. EUR lines use an identity rate of `1`; due RON
+lines use the latest available rate on or before `fx_reference_date`. Future RON lines remain
+pending and do not silently contribute a guessed amount. `mart.order_lines_eur` records the
+requested date, applied date, rate, method, source amount, and EUR amount. The required
+`mart.customer_spend_eur` table aggregates those lines and exposes `is_complete` plus pending
+line counts so partial totals cannot be mistaken for final totals.
+
 ## Branching
 
 Feature branches are created from `develop` and merged through pull requests. The `main`
