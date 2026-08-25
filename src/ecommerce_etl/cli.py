@@ -3,6 +3,7 @@ import json
 from collections.abc import Sequence
 
 from ecommerce_etl.cleaning import clean_orders
+from ecommerce_etl.country_revenue import refresh_country_revenue
 from ecommerce_etl.customer_spend import refresh_customer_spend
 from ecommerce_etl.database import check_database_connection
 from ecommerce_etl.fx_ingestion import ingest_fx_rates
@@ -21,6 +22,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "refresh-customer-spend",
         help="Refresh line-level EUR conversions and customer totals",
+    )
+    subparsers.add_parser(
+        "refresh-country-revenue",
+        help="Refresh ranked Books and Electronics revenue by country",
     )
     return parser
 
@@ -56,3 +61,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.command == "refresh-customer-spend":
         print(json.dumps(refresh_customer_spend(), indent=2))
+        return
+
+    if args.command == "refresh-country-revenue":
+        print(json.dumps(refresh_country_revenue(), indent=2))
