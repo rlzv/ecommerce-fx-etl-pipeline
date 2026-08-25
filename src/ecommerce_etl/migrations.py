@@ -5,7 +5,7 @@ from ecommerce_etl.config import Settings
 from ecommerce_etl.database import database_connection
 
 MIGRATION_PATTERN = re.compile(r"^(?P<version>\d{3})_[a-z0-9_]+\.sql$")
-DEFAULT_MIGRATIONS_DIRECTORY = Path(__file__).resolve().parents[2] / "sql" / "migrations"
+DEFAULT_MIGRATIONS_DIRECTORY = Path(__file__).resolve().parent / "sql" / "migrations"
 
 
 def discover_migrations(directory: Path = DEFAULT_MIGRATIONS_DIRECTORY) -> list[Path]:

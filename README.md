@@ -27,7 +27,7 @@ Validated locally and against a hosted Supabase PostgreSQL database on 2026-08-2
 | Currently resolved customer spend | EUR 702,602.02 |
 | Qualifying country rows | 2 |
 | Qualifying Books/Electronics revenue | EUR 183,511.14 |
-| Automated tests | 60 |
+| Automated tests | 61 |
 
 Future FX reference dates remain pending. Therefore, resolved revenue is intentionally partial
 until those dates arrive and the daily pipeline loads the corresponding rates.
