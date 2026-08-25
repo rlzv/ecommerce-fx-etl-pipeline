@@ -134,6 +134,30 @@ their combined total by country. It includes only countries whose combined resol
 exceeds EUR 40,000 and ranks them deterministically by revenue. Pending future FX lines and a
 completeness flag remain visible so currently partial country totals are not presented as final.
 
+## End-to-end automation and monitoring
+
+Run every stage locally in dependency order:
+
+```bash
+ecommerce-etl run-pipeline
+ecommerce-etl check-freshness --max-age-hours 26
+```
+
+The end-to-end command applies migrations, ingests orders, rebuilds the clean and quarantine
+tables, loads currently available FX rates, and refreshes both marts. A PostgreSQL advisory
+transaction lock prevents overlapping executions, every stage keeps its own audit record, and
+the parent `daily_etl` run fails immediately when any stage or quality check fails.
+
+`.github/workflows/daily-pipeline.yml` runs at 06:15 UTC every day and supports manual runs.
+`.github/workflows/freshness-monitor.yml` runs independently at 07:00 UTC and after every daily
+workflow completion. It fails when the upstream workflow failed, the latest successful database
+run is older than 26 hours, a newer failed run exists, source tables are empty, or either mart is
+stale. Configure the hosted `DATABASE_URL` and `ORDERS_API_KEY` as GitHub Actions secrets.
+
+GitHub records failed workflows and can send repository notification emails. In production,
+route failures to an on-call destination such as Slack, PagerDuty, or Datadog and attach the
+`ops.pipeline_runs` and `ops.data_quality_results` records to the alert for diagnosis.
+
 ## Branching
 
 Feature branches are created from `develop` and merged through pull requests. The `main`
