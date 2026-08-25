@@ -37,4 +37,3 @@ CREATE TABLE IF NOT EXISTS ops.data_quality_results (
 
 CREATE INDEX IF NOT EXISTS data_quality_results_run_id_idx
     ON ops.data_quality_results (pipeline_run_id);
-

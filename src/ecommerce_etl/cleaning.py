@@ -14,7 +14,7 @@ from ecommerce_etl.pipeline_runs import (
 
 PIPELINE_NAME = "orders_cleaning"
 DEFAULT_CLEANING_SQL = (
-    Path(__file__).resolve().parents[2] / "sql" / "transformations" / "clean_orders.sql"
+    Path(__file__).resolve().parent / "sql" / "transformations" / "clean_orders.sql"
 )
 
 

@@ -15,7 +15,7 @@ from ecommerce_etl.pipeline_runs import (
 
 PIPELINE_NAME = "country_category_revenue_mart"
 DEFAULT_COUNTRY_REVENUE_SQL = (
-    Path(__file__).resolve().parents[2] / "sql" / "marts" / "refresh_country_category_revenue.sql"
+    Path(__file__).resolve().parent / "sql" / "marts" / "refresh_country_category_revenue.sql"
 )
 
 

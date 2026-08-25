@@ -32,6 +32,13 @@ ecommerce-etl = "ecommerce_etl.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+ecommerce_etl = [
+  "sql/marts/*.sql",
+  "sql/migrations/*.sql",
+  "sql/transformations/*.sql",
+]
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
@@ -56,4 +63,3 @@ python_version = "3.12"
 strict = true
 packages = ["ecommerce_etl"]
 mypy_path = "src"
-

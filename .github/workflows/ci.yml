@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -41,3 +41,7 @@ jobs:
       - name: Test
         run: pytest --cov=ecommerce_etl --cov-report=term-missing
 
+      - name: Verify wheel contains runtime SQL
+        run: |
+          python -m pip wheel . --no-deps --wheel-dir dist
+          python -c "import glob, zipfile; names = zipfile.ZipFile(glob.glob('dist/*.whl')[0]).namelist(); assert sum(name.endswith('.sql') for name in names) == 9"
