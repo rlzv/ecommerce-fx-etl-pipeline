@@ -1,24 +1,93 @@
 # E-commerce FX ETL Pipeline
 
-An end-to-end data engineering project that ingests e-commerce order lines, cleans and
-validates inconsistent source data, loads daily foreign-exchange rates, and builds analytical
-tables in EUR.
+[![CI](https://github.com/rlzv/ecommerce-fx-etl-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/rlzv/ecommerce-fx-etl-pipeline/actions/workflows/ci.yml)
+
+An end-to-end data engineering project that ingests inconsistent e-commerce order lines,
+preserves the source data, cleans and quarantines records with auditable rules, loads daily
+RON/EUR exchange rates, and builds analytical PostgreSQL tables in EUR.
+
+The project emphasizes production-oriented Python and SQL: typed transformations, explicit
+data-quality decisions, idempotent loads, reconciliation checks, operational metadata,
+scheduled execution, and independent freshness monitoring.
+
+## Results
+
+Validated locally and against a hosted Supabase PostgreSQL database on 2026-08-25:
+
+| Metric | Result |
+|---|---:|
+| Raw order lines | 9,268 |
+| Distinct source payloads | 9,085 |
+| Exact duplicate copies | 183 |
+| Clean order lines | 8,787 |
+| Quarantined order lines | 481 |
+| Completed clean lines | 8,389 |
+| Refunded clean lines | 398 |
+| Customer mart rows | 1,868 |
+| Currently resolved customer spend | EUR 702,602.02 |
+| Qualifying country rows | 2 |
+| Qualifying Books/Electronics revenue | EUR 183,511.14 |
+| Automated tests | 60 |
+
+Future FX reference dates remain pending. Therefore, resolved revenue is intentionally partial
+until those dates arrive and the daily pipeline loads the corresponding rates.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A["Orders REST API"] --> B["raw.orders_raw"]
+    B --> C["SQL cleaning rules"]
+    C --> D["core.orders_clean"]
+    C --> E["quarantine.orders_rejected"]
+    F["Frankfurter FX API"] --> G["reference.fx_rates"]
+    D --> H["mart.order_lines_eur"]
+    G --> H
+    H --> I["mart.customer_spend_eur"]
+    H --> J["mart.country_category_revenue_eur"]
+    K["GitHub Actions"] --> L["daily_etl and freshness monitor"]
+    L --> B
+    L --> G
+    L --> I
+    L --> J
+```
+
+PostgreSQL schemas separate responsibilities:
+
+| Schema | Responsibility |
+|---|---|
+| `raw` | Lossless source landing data and ingestion metadata |
+| `reference` | Canonical product mappings and FX rates |
+| `core` | Typed, repaired, deduplicated production orders |
+| `quarantine` | Rejected rows with one or more explicit reasons |
+| `mart` | Auditable EUR conversions and analytical outputs |
+| `ops` | Pipeline runs, errors, metrics, migrations, and quality results |
+
+See [Architecture](docs/architecture.md) for lineage, transaction boundaries, idempotency, and
+design tradeoffs.
 
 ## Technology
 
-- Python 3.12+
+- Python 3.12–3.14
 - PostgreSQL 17
-- Docker Compose
-- SQL transformations
-- Pytest, Ruff, and mypy
-- GitHub Actions
+- SQL transformations and versioned migrations
+- Docker Compose for local PostgreSQL
+- Supabase PostgreSQL for hosted execution
+- GitHub Actions for CI, daily execution, and monitoring
+- Pytest, Ruff, mypy, and data-quality SQL checks
+- Frankfurter v2 for historical RON/EUR rates
 
-## Local bootstrap
+## Local setup
 
-Copy the environment template and start PostgreSQL:
+Copy the environment template and insert the publishable source API key into `.env`:
 
 ```bash
 cp .env.example .env
+```
+
+Start PostgreSQL:
+
+```bash
 docker compose up -d postgres
 docker compose ps
 ```
@@ -39,128 +108,144 @@ ecommerce-etl db-check
 ecommerce-etl migrate
 ```
 
-## Orders ingestion
+## Run the pipeline
 
-Set `ORDERS_API_KEY` in `.env`, apply pending migrations, and ingest the complete paginated
-orders snapshot:
-
-```bash
-ecommerce-etl migrate
-ecommerce-etl ingest-orders
-```
-
-The `raw.orders_raw` landing table stores each source object unchanged as JSONB. A canonical
-SHA-256 fingerprint plus an occurrence number preserves exact duplicate rows while keeping
-repeat pipeline runs idempotent. Each execution and its row-count metrics are recorded in
-`ops.pipeline_runs`.
-
-Inspect the result in PostgreSQL:
-
-```sql
-SELECT COUNT(*) FROM raw.orders_raw;
-
-SELECT pipeline_run_id, status, metrics, started_at, finished_at
-FROM ops.pipeline_runs
-WHERE pipeline_name = 'orders_ingestion'
-ORDER BY pipeline_run_id DESC;
-```
-
-## Orders cleaning
-
-Refresh the typed clean table and the rejected-row quarantine:
-
-```bash
-ecommerce-etl migrate
-ecommerce-etl clean-orders
-```
-
-Cleaning is implemented in SQL and runs transactionally. The transformation:
-
-- keeps the first copy of an exact duplicate and quarantines later copies;
-- quarantines test orders and rows with invalid quantities or prices;
-- parses ISO, Unix-second, and `DD/MM/YYYY HH:MM` timestamps as UTC;
-- repairs customer IDs from unambiguous normalized-email mappings and creates an explicitly
-  flagged deterministic email-based surrogate when no source ID exists anywhere;
-- repairs missing categories and malformed SKUs from the canonical product catalog;
-- retains refunded orders in `core.orders_clean`, with downstream revenue marts responsible
-  for excluding them.
-
-Every rejected row contains one or more explicit reasons, and every repaired clean row records
-the applied rules in `data_repairs`. Critical reconciliation and validity checks are stored in
-`ops.data_quality_results`.
-
-## Exchange-rate ingestion
-
-Fetch the available RON-to-EUR rate series required by clean orders:
-
-```bash
-ecommerce-etl migrate
-ecommerce-etl ingest-fx
-```
-
-The pipeline requests Frankfurter v2 only through the latest due reference date and adds a
-seven-day lookback so weekends and holidays can use the latest earlier published rate. Rates
-are upserted into `reference.fx_rates` by date and currency pair. Future order reference dates
-remain explicitly pending until a later daily run; they are never filled prematurely with the
-current rate.
-
-## Customer spend in EUR
-
-Refresh auditable line conversions and per-customer totals:
-
-```bash
-ecommerce-etl migrate
-ecommerce-etl refresh-customer-spend
-```
-
-Only completed orders contribute to spending. EUR lines use an identity rate of `1`; due RON
-lines use the latest available rate on or before `fx_reference_date`. Future RON lines remain
-pending and do not silently contribute a guessed amount. `mart.order_lines_eur` records the
-requested date, applied date, rate, method, source amount, and EUR amount. The required
-`mart.customer_spend_eur` table aggregates those lines and exposes `is_complete` plus pending
-line counts so partial totals cannot be mistaken for final totals.
-
-## Country and category revenue
-
-Refresh the ranked Books and Electronics revenue breakdown:
-
-```bash
-ecommerce-etl migrate
-ecommerce-etl refresh-country-revenue
-```
-
-`mart.country_category_revenue_eur` shows resolved EUR revenue for Books, Electronics, and
-their combined total by country. It includes only countries whose combined resolved revenue
-exceeds EUR 40,000 and ranks them deterministically by revenue. Pending future FX lines and a
-completeness flag remain visible so currently partial country totals are not presented as final.
-
-## End-to-end automation and monitoring
-
-Run every stage locally in dependency order:
+Run every stage in dependency order:
 
 ```bash
 ecommerce-etl run-pipeline
+```
+
+The command performs:
+
+1. Versioned database migrations
+2. Paginated, lossless orders ingestion
+3. SQL cleaning, repair, deduplication, and quarantine
+4. Required RON/EUR rate ingestion
+5. Line-level conversions and customer-spend aggregation
+6. Ranked Books/Electronics revenue by country
+
+Every stage can also run independently:
+
+```bash
+ecommerce-etl ingest-orders
+ecommerce-etl clean-orders
+ecommerce-etl ingest-fx
+ecommerce-etl refresh-customer-spend
+ecommerce-etl refresh-country-revenue
+```
+
+## Cleaning decisions
+
+The cleaning transformation is transactional and auditable. It:
+
+- keeps the first copy of an exact source payload and quarantines later copies;
+- quarantines test orders, invalid quantities, non-positive prices, and unsupported values;
+- detects extreme positive prices using a per-product/per-currency median baseline and a
+  conservative `unit_price > 10 × median` threshold;
+- parses ISO, Unix-second, and `DD/MM/YYYY HH:MM` timestamps as UTC;
+- repairs missing customer IDs from unambiguous normalized-email mappings;
+- creates one explicitly flagged deterministic email-based surrogate where no source ID exists;
+- repairs categories and malformed SKUs from a canonical product catalog;
+- retains refunded orders in `core.orders_clean` while revenue marts use completed orders only.
+
+The downstream mart review exposed 13 `999999` prices that passed the initial positive-price
+rule. They are now quarantined as `implausible_unit_price_outlier`; the maximum accepted price
+is 207.87. This prevents plausible-looking but materially incorrect revenue.
+
+See [Data quality](docs/data-quality.md) for counts, overlapping rejection reasons, repair rules,
+and limitations.
+
+## FX and revenue rules
+
+For every completed order line:
+
+```text
+source_amount = quantity × unit_price
+```
+
+- EUR uses an identity rate of `1`.
+- Due RON lines use the latest available rate on or before `fx_reference_date`.
+- An exact-date rate is preferred; weekends and holidays may use the latest prior rate.
+- Future reference dates remain `pending`; the pipeline never substitutes today's rate.
+- Refunded, test, invalid, duplicate, and quarantined lines do not contribute to revenue.
+
+`mart.order_lines_eur` preserves the requested date, applied date, rate, conversion method,
+source amount, and EUR amount. `mart.customer_spend_eur` exposes customer totals and completion
+state. `mart.country_category_revenue_eur` includes only Books/Electronics country totals above
+EUR 40,000 and ranks them deterministically by resolved revenue.
+
+## Automation and monitoring
+
+Local health check:
+
+```bash
 ecommerce-etl check-freshness --max-age-hours 26
 ```
 
-The end-to-end command applies migrations, ingests orders, rebuilds the clean and quarantine
-tables, loads currently available FX rates, and refreshes both marts. A PostgreSQL advisory
-transaction lock prevents overlapping executions, every stage keeps its own audit record, and
-the parent `daily_etl` run fails immediately when any stage or quality check fails.
+Hosted workflows:
 
-`.github/workflows/daily-pipeline.yml` runs at 06:15 UTC every day and supports manual runs.
-`.github/workflows/freshness-monitor.yml` runs independently at 09:00 UTC and after every daily
-workflow completion. Explicit workflow failures are reported immediately; the later independent
-schedule leaves normal GitHub scheduling delay headroom while still detecting a completely
-missed daily trigger on the same day. The monitor also fails when the latest successful database
-run is older than 26 hours, a newer failed run exists, source tables are empty, or either mart is
-stale. Configure the hosted `DATABASE_URL` and `ORDERS_API_KEY` as GitHub Actions secrets.
+- `daily-pipeline.yml`: daily at 06:15 UTC and manual dispatch.
+- `freshness-monitor.yml`: immediately after daily completion and independently at 09:00 UTC.
+- CI: Python 3.12 and 3.14 on pull requests and pushes to `develop` or `main`.
 
-GitHub records failed workflows and can send repository notification emails. In production,
-route failures to an on-call destination such as Slack, PagerDuty, or Datadog and attach the
-`ops.pipeline_runs` and `ops.data_quality_results` records to the alert for diagnosis.
+The later independent monitor detects a completely missed GitHub schedule on the same day,
+while `workflow_run` detects an explicit failure immediately. A PostgreSQL advisory transaction
+lock prevents overlapping end-to-end runs. GitHub repository secrets provide `DATABASE_URL` and
+`ORDERS_API_KEY`; neither secret belongs in source control.
+
+See [Monitoring and runbook](docs/monitoring.md) for failure detection, triage queries,
+production alerting, and limitations.
+
+## Validation
+
+```bash
+ruff check .
+ruff format --check .
+mypy src
+pytest
+```
+
+The pipeline also writes critical runtime checks to `ops.data_quality_results`, including row
+reconciliation, required fields, duplicate payloads, FX coverage, non-negative amounts,
+customer identity consistency, revenue reconciliation, threshold enforcement, and rank order.
+
+## Hosted deployment
+
+The hosted database uses the Supabase Session pooler because GitHub-hosted runners require an
+IPv4-compatible PostgreSQL endpoint. Configure these repository secrets:
+
+```text
+DATABASE_URL
+ORDERS_API_KEY
+```
+
+Scheduled workflows run from GitHub's default branch. Merge `develop` into `main` only after CI,
+local validation, hosted validation, and documentation review.
+
+## Documentation
+
+- [Project writeup](docs/project-writeup.md)
+- [Architecture](docs/architecture.md)
+- [Data quality](docs/data-quality.md)
+- [Monitoring and runbook](docs/monitoring.md)
+- [AI usage](docs/ai-usage.md)
 
 ## Branching
 
-Feature branches are created from `develop` and merged through pull requests. The `main`
-branch contains the release-ready version.
+Features and fixes are developed from `develop`, validated locally, and merged through pull
+requests. `develop` is the integration branch; `main` contains the release-ready version and
+activates scheduled workflows.
+
+## Security
+
+- `.env` is ignored by Git.
+- `.env.example` contains placeholders only.
+- Hosted credentials are GitHub Actions secrets.
+- Logs and documentation contain no database passwords or connection strings.
+- The source API uses its assignment-provided publishable key; destination database credentials
+  are separate.
+
+## License
+
+MIT
