@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     orders_api_url: str = "https://jzozteoirwfczccltcdr.supabase.co/rest/v1/orders_raw"
     orders_api_key: SecretStr = SecretStr("")
+    orders_page_size: int = Field(default=1000, ge=1, le=1000)
     frankfurter_base_url: str = "https://api.frankfurter.dev/v2"
 
     request_timeout_seconds: float = Field(default=30.0, gt=0, le=300)

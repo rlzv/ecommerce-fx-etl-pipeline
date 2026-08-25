@@ -3,6 +3,7 @@ import json
 from collections.abc import Sequence
 
 from ecommerce_etl.database import check_database_connection
+from ecommerce_etl.ingestion import ingest_orders
 from ecommerce_etl.migrations import apply_migrations
 
 
@@ -11,6 +12,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("db-check", help="Verify the configured PostgreSQL connection")
     subparsers.add_parser("migrate", help="Apply pending SQL migrations")
+    subparsers.add_parser("ingest-orders", help="Fetch and upsert the raw orders snapshot")
     return parser
 
 
@@ -29,3 +31,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 print(f"- {filename}")
         else:
             print("Database is already up to date.")
+        return
+
+    if args.command == "ingest-orders":
+        print(json.dumps(ingest_orders(), indent=2))

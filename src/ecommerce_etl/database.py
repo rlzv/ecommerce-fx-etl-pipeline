@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
@@ -10,7 +10,7 @@ from ecommerce_etl.config import Settings, get_settings
 
 
 @contextmanager
-def database_connection(settings: Settings | None = None) -> Iterator[Connection[Any]]:
+def database_connection(settings: Settings | None = None) -> Generator[Connection[Any], None, None]:
     """Open a PostgreSQL connection and close it deterministically."""
 
     active_settings = settings or get_settings()
