@@ -3,6 +3,7 @@ import json
 from collections.abc import Sequence
 
 from ecommerce_etl.cleaning import clean_orders
+from ecommerce_etl.customer_spend import refresh_customer_spend
 from ecommerce_etl.database import check_database_connection
 from ecommerce_etl.fx_ingestion import ingest_fx_rates
 from ecommerce_etl.ingestion import ingest_orders
@@ -17,6 +18,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("ingest-orders", help="Fetch and upsert the raw orders snapshot")
     subparsers.add_parser("clean-orders", help="Refresh clean and quarantined orders")
     subparsers.add_parser("ingest-fx", help="Fetch and upsert required RON-to-EUR FX rates")
+    subparsers.add_parser(
+        "refresh-customer-spend",
+        help="Refresh line-level EUR conversions and customer totals",
+    )
     return parser
 
 
@@ -47,3 +52,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.command == "ingest-fx":
         print(json.dumps(ingest_fx_rates(), indent=2))
+        return
+
+    if args.command == "refresh-customer-spend":
+        print(json.dumps(refresh_customer_spend(), indent=2))
