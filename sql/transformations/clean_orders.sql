@@ -75,6 +75,19 @@ typed_rows AS (
     LEFT JOIN reference.product_catalog AS product_catalog
         ON product_catalog.product_name = source_rows.product_name
 ),
+price_baselines AS (
+    SELECT
+        product_name,
+        currency,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+            ORDER BY unit_price
+        )::NUMERIC AS median_unit_price
+    FROM typed_rows
+    WHERE source_occurrence = 1
+      AND status <> 'test'
+      AND unit_price > 0
+    GROUP BY product_name, currency
+),
 classified AS (
     SELECT
         typed_rows.*,
@@ -89,6 +102,10 @@ classified AS (
                 CASE
                     WHEN unit_price IS NULL OR unit_price <= 0
                         THEN 'invalid_unit_price'
+                END,
+                CASE
+                    WHEN unit_price > price_baselines.median_unit_price * 10
+                        THEN 'implausible_unit_price_outlier'
                 END,
                 CASE WHEN order_id IS NULL THEN 'missing_order_id' END,
                 CASE WHEN customer_id IS NULL THEN 'missing_customer_id' END,
@@ -144,6 +161,7 @@ classified AS (
             NULL
         ) AS data_repairs
     FROM typed_rows
+    LEFT JOIN price_baselines USING (product_name, currency)
 )
 SELECT *
 FROM classified;

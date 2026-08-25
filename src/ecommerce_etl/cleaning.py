@@ -33,6 +33,7 @@ class CleaningMetrics:
     test_rejections: int
     invalid_quantity_rejections: int
     invalid_price_rejections: int
+    price_outlier_rejections: int
     customer_id_repairs: int
     customer_surrogate_repairs: int
     category_repairs: int
@@ -52,6 +53,7 @@ class CleaningMetrics:
             "test_rejections": self.test_rejections,
             "invalid_quantity_rejections": self.invalid_quantity_rejections,
             "invalid_price_rejections": self.invalid_price_rejections,
+            "price_outlier_rejections": self.price_outlier_rejections,
             "customer_id_repairs": self.customer_id_repairs,
             "customer_surrogate_repairs": self.customer_surrogate_repairs,
             "category_repairs": self.category_repairs,
@@ -106,6 +108,7 @@ def _refresh_clean_orders(pipeline_run_id: int, settings: Settings) -> CleaningM
             test_rejections=int(row["test_rejections"]),
             invalid_quantity_rejections=int(row["invalid_quantity_rejections"]),
             invalid_price_rejections=int(row["invalid_price_rejections"]),
+            price_outlier_rejections=int(row["price_outlier_rejections"]),
             customer_id_repairs=int(row["customer_id_repairs"]),
             customer_surrogate_repairs=int(row["customer_surrogate_repairs"]),
             category_repairs=int(row["category_repairs"]),
@@ -172,6 +175,9 @@ _METRICS_SQL = """
             WHERE 'invalid_quantity' = ANY(rejection_reasons)) AS invalid_quantity_rejections,
         (SELECT COUNT(*) FROM quarantine.orders_rejected
             WHERE 'invalid_unit_price' = ANY(rejection_reasons)) AS invalid_price_rejections,
+        (SELECT COUNT(*) FROM quarantine.orders_rejected
+            WHERE 'implausible_unit_price_outlier' = ANY(rejection_reasons))
+            AS price_outlier_rejections,
         (SELECT COUNT(*) FROM core.orders_clean
             WHERE 'customer_id_from_email' = ANY(data_repairs)) AS customer_id_repairs,
         (SELECT COUNT(*) FROM core.orders_clean
