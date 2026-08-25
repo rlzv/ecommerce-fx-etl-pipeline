@@ -10,6 +10,7 @@ def test_settings_use_local_defaults() -> None:
     assert settings.app_environment == "local"
     assert settings.database_url.endswith("localhost:5433/ecommerce_etl")
     assert settings.request_timeout_seconds == 30.0
+    assert settings.orders_page_size == 1000
 
 
 def test_database_url_must_be_postgresql() -> None:
@@ -20,3 +21,8 @@ def test_database_url_must_be_postgresql() -> None:
 def test_timeout_must_be_positive() -> None:
     with pytest.raises(ValidationError):
         Settings(request_timeout_seconds=0, _env_file=None)
+
+
+def test_orders_page_size_cannot_exceed_supabase_limit() -> None:
+    with pytest.raises(ValidationError):
+        Settings(orders_page_size=1001, _env_file=None)
